@@ -6,10 +6,17 @@
 //
 
 import UIKit
+import CoreLocation
 
-class CityViewController: UITableViewController {
+class CityViewController: UITableViewController, CLLocationManagerDelegate {
+    
+    @IBOutlet var myLocation: UIButton!
+    
+    let locationManager = CLLocationManager()
+    var currentLocation: CLLocation?
     
     var allCityForForecast = [CityForForecast]()
+    //var coordinatesForForecast: LocationForForecast!
     func createNewCity(index: Int) {
         let newCity = CityForForecast(index: index)
         allCityForForecast.append(newCity)
@@ -25,7 +32,28 @@ class CityViewController: UITableViewController {
         
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 65
+        
+        setupLocation()
     }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        setupLocation()
+    }
+    
+    func setupLocation() {
+        locationManager.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if !locations.isEmpty, currentLocation == nil {
+            currentLocation = locations.first
+            locationManager.stopUpdatingLocation()
+        }
+    }
+    
            
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return allCityForForecast.count
@@ -41,6 +69,35 @@ class CityViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 60
     }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+            
+        switch segue.identifier {
+        case "forecastByCity":
+            let segueIdentifier = SegueIdentifier(segueType: "forecastByCity")
+            if let row = tableView.indexPathForSelectedRow?.row {
+                let city = allCityForForecast[row]
+                let forecastViewController = segue.destination as! ForecastViewController
+                forecastViewController.cityForForecast = city
+                forecastViewController.segueIdentifier = segueIdentifier
+            }
+        case "forecastByLocation":
+            guard let currentLocation = currentLocation else {
+                print("No Location")
+                return
+            }
+            let segueIdentifier = SegueIdentifier(segueType: "forecastByLocation")
+            let forecastViewController = segue.destination as! ForecastViewController
+            let coordinatesForForecast = LocationForForecast(lon: currentLocation.coordinate.longitude, lat: currentLocation.coordinate.latitude)
+            forecastViewController.locationForForecast = coordinatesForForecast
+            forecastViewController.segueIdentifier = segueIdentifier
+        default:
+            preconditionFailure("Unexpected segue identifier")
+        }
+        
+    }
+    
+    
     
 }
 
@@ -58,4 +115,25 @@ class CityForForecast {
     }
 }
 
+class LocationForForecast {
+    
+    var coordinatesLon: Double
+    var coordinatesLat: Double
+    
+    init(lon: Double, lat: Double) {
+        self.coordinatesLon = lon
+        self.coordinatesLat = lat
+    }
+    
+}
+
+class SegueIdentifier {
+    
+    var segueIdentifier: String
+    
+    init(segueType: String) {
+        segueIdentifier = segueType
+    }
+    
+}
 
